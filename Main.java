@@ -435,13 +435,12 @@ public class CENGVACDB implements ICENGVACDB {
 
     @Override
     public QueryResult.UserIDuserNameAddressResult[] getUsersAtHasLeastTwoDoseAtMostOneSideEffect() {
-        String query =  "SELECT U.userID, U.userName, U.address " +
-                        "FROM User U, Vaccination V1, Vaccination V2, Seen S " +
-                        "WHERE U.userID = V1.userID AND V2.userID = V1.userID AND S.userID = U.userID AND " +
-                               "V1.code = V2.code AND S.code = V1.code AND "  +
-                               "V1.dose < V2.dose "  +
-                        "GROUP BY U.userID, S.effectcode " +
-                        "HAVING COUNT(*) <= 1";
+        String query =  "SELECT DISTINCT U.userID, U.userName, U.address " +
+                        "FROM User U, Vaccination V1, Vaccination V2 " +
+                        "WHERE U.userID = V1.userID AND V1.userID = V2.userID AND " +
+                        "V1.code = V2.code AND V1.dose < V2.dose AND " +
+                        "V1.userID NOT IN " +
+                        "(SELECT S.userID FROM Seen S GROUP BY S.userID HAVING COUNT(*) > 1)";
 
 
         //initialize();
