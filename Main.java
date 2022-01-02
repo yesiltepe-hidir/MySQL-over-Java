@@ -534,12 +534,96 @@ public class CENGVACDB implements ICENGVACDB {
 
     @Override
     public QueryResult.UserIDuserNameAddressResult[] getUsersWithAtLeastTwoDifferentVaccineTypeByGivenInterval(String startdate, String enddate) {
-        return new QueryResult.UserIDuserNameAddressResult[0];
+        String query =  "SELECT DISTINCT U.userID, U.userName, U.address " +
+                        "FROM Vaccination V1, Vaccination V2, User U " +
+                        "WHERE V1.userID = U.userID AND V2.userID = U.userID AND " +
+                        "V1.code < V2.code AND " +
+                        "V1.vacdate BETWEEN '" + startdate + "' AND '" + enddate +"' ORDER BY U.userID";
+
+
+        int rows = 0;
+
+        try(Statement s = conn.createStatement()) {
+            ResultSet rs = s.executeQuery(query);
+            while (rs.next()) {
+                rows = rows + 1;
+            }
+        } catch (Exception e)
+        {
+            System.out.println("Row number couldn't be found getUsersWithAtLeastTwoDifferentVaccineTypeByGivenInterval...");
+            System.out.println(e);
+        }
+
+        QueryResult.UserIDuserNameAddressResult[] res = new QueryResult.UserIDuserNameAddressResult[rows];
+        int idx = 0;
+        try(Statement stmt = conn.createStatement()){
+            ResultSet rs = stmt.executeQuery(query);
+            while (rs.next()){
+                int userID = rs.getInt("userID");
+                String userName = rs.getString("userName");
+                String address = rs.getString("address");
+
+                QueryResult.UserIDuserNameAddressResult v = new QueryResult.UserIDuserNameAddressResult(""+userID, userName, address);
+                res[idx] = v;
+                idx = idx + 1;
+            }
+        } catch (Exception e)
+        {
+            System.out.println("UserID, Name, Address couldn't be added getUsersWithAtLeastTwoDifferentVaccineTypeByGivenInterval...");
+            System.out.println(e);
+        }
+
+        System.out.println("getUsersWithAtLeastTwoDifferentVaccineTypeByGivenInterval Successful...");
+        return res;
     }
 
     @Override
     public AllergicSideEffect[] getSideEffectsOfUserWhoHaveTwoDosesInLessThanTwentyDays() {
-        return new AllergicSideEffect[0];
+        String query =  "SELECT DISTINCT A.effectcode, A.effectName " +
+                        "FROM AllergicSideEffect A, Seen S, "+
+                                "(SELECT V1.userID, V1.code " +
+                                "FROM Vaccination V1, Vaccination V2 " +
+                                "WHERE V1.userID = V2.userID AND V1.code = V2.code AND V1.dose < V2.dose "+
+                                "GROUP BY V1.userID, V1.code " +
+                                "HAVING COUNT(*) = 1) AS Temp " +
+
+                        "WHERE S.userID = Temp.userID AND S.code = Temp.code AND S.effectcode = A.effectcode AND S.code IN " +
+                        "(SELECT V1.code " +
+                        "FROM Vaccination V1, Vaccination V2 " +
+                        "WHERE Temp.code = V1.code AND V1.code = V2.code AND Temp.userID = V1.userID AND V1.userID = V2.userID AND V1.dose < V2.dose "+
+                        "AND DATEDIFF(V2.vacdate, V1.vacdate) < 20)";
+        int rows = 0;
+
+        try(Statement s = conn.createStatement()) {
+            ResultSet rs = s.executeQuery(query);
+            while (rs.next()) {
+                rows = rows + 1;
+            }
+        } catch (Exception e)
+        {
+            System.out.println("Row number couldn't be found getSideEffectsOfUserWhoHaveTwoDosesInLessThanTwentyDays...");
+            System.out.println(e);
+        }
+
+        AllergicSideEffect[] res = new AllergicSideEffect[rows];
+        int idx = 0;
+        try(Statement stmt = conn.createStatement()){
+            ResultSet rs = stmt.executeQuery(query);
+            while (rs.next()){
+                int effectcode = rs.getInt("effectcode");
+                String effectname = rs.getString("effectname");
+                AllergicSideEffect v = new AllergicSideEffect(effectcode, effectname);
+                res[idx] = v;
+                idx = idx + 1;
+            }
+        } catch (Exception e)
+        {
+            System.out.println("Couldn't be added getSideEffectsOfUserWhoHaveTwoDosesInLessThanTwentyDays...");
+            System.out.println(e);
+        }
+
+        return res;
+
     }
 
     @Override
