@@ -88,6 +88,7 @@ public class CENGVACDB implements ICENGVACDB {
             } catch (Exception e){
                 System.out.println("Table Creation Failed...");
                 System.out.println(e);
+                return 0;
         }
 
         return number_of_successful_created_tables;
@@ -98,7 +99,7 @@ public class CENGVACDB implements ICENGVACDB {
         int number_of_dropped_tables = 0;
         try{
             //initialize();
-            String drop_command = "DROP TABLE IF EXISTS Seen, Vaccination, User, AllergicSideEffect, Vaccine";
+            String drop_command = "DROP TABLE  Seen, Vaccination, User, AllergicSideEffect, Vaccine";
 
             PreparedStatement drop_tables = conn.prepareStatement(drop_command);
             drop_tables.executeUpdate();
@@ -394,10 +395,16 @@ public class CENGVACDB implements ICENGVACDB {
 
     @Override
     public Vaccine[] getTwoRecentVaccinesDoNotContainVac() {
-        String query =  "SELECT DISTINCT A.code, A.vaccinename, A.type, B.vacdate " +
-                        "FROM Vaccine A, Vaccination B " +
-                        "WHERE A.code = B.code " +
-                        "ORDER BY B.vacdate DESC";
+        String query =  "SELECT V.code, V.vaccinename, V.type " +
+                        "FROM  Vaccine V, Vaccination VC " +
+                        "WHERE V.code = VC.code AND " +
+                        "V.vaccinename NOT LIKE '%vac%' " +
+                        "GROUP BY VC.code, VC.vacdate "+
+                        "HAVING VC.vacdate = " +
+                        "(SELECT MAX(Temp.vacdate) FROM Vaccination Temp WHERE Temp.code = VC.code) " +
+                        "ORDER BY VC.vacdate DESC, V.code " +
+                        "LIMIT 2";
+
 
         //initialize();
 
@@ -405,23 +412,13 @@ public class CENGVACDB implements ICENGVACDB {
         int  total = 0;
         try(Statement stmt = conn.createStatement()){
             ResultSet rs = stmt.executeQuery(query);
-            while (rs.next() && total < 2){
+            while (rs.next()){
                 int code = rs.getInt("code");
                 String vaccinename = rs.getString("vaccinename");
                 String type = rs.getString("type");
-                if (!vaccinename.toLowerCase().contains("vac"))
-                {
-                    if (total == 0 || !res[0].getVaccineName().strip().toLowerCase().equals(vaccinename.strip().toLowerCase()))
-                    {
-                        if (total == 1){
-                            System.out.println(res[0].getVaccineName().equals(vaccinename) );
-                            System.out.println("0: " + res[0].getVaccineName() + " 1: " + vaccinename);
-                        }
-                        Vaccine v = new Vaccine(code, vaccinename, type);
-                        res[total] = v;
-                        total = total + 1;
-                    }
-                }
+                Vaccine v = new Vaccine(code, vaccinename, type);
+                res[total] = v;
+                total = total + 1;
             }
         } catch (Exception e)
         {
